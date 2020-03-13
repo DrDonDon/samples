@@ -1,0 +1,45 @@
+trigger:
+  branches:
+    exclude:
+    - "*"
+    - refs/tags/*
+    - refs/heads/*
+
+schedules:
+- cron: "0 */6 * * *"
+  displayName: Every 6 hours
+  branches:
+    include:
+    - master
+  always: true # run even if there's no source changes
+
+resources:
+- repo: self
+
+variables:
+  - group: AmphoraData
+  - group: WeatherZone
+
+
+stages:
+- stage: Main
+  displayName: Build image
+  jobs:  
+  - job: LoadData
+    displayName: Load Data from WZ into Amphorae
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - script: docker build -t $TAG $(Build.SourcesDirectory)/python-WeatherZone
+      displayName: Build an image
+      env:
+        TAG: '$(Build.BuildId)'
+    - script: docker run -e wz_user=$wz_user -e wz_password=$wz_password -e host=$host -e username=$username -e password=$password $TAG
+      displayName: Run ETL
+      env:
+        wz_user: $(wz_user)
+        wz_password: $(wz_password)
+        host: $(host)
+        username: $(username)
+        password: $(password)
+        TAG: '$(Build.BuildId)'
